@@ -141,19 +141,19 @@
 
       try {
         const pdfDoc = await PDFDocument.load(originalPdfBytes);
-        const page = pdfDoc.getPages()[0];
+        const page = pdfDoc.getPages()[2];
 
         const signatureImage = await pdfDoc.embedPng(
           signaturePad.toDataURL("image/png")
         );
 
-        const { width } = page.getSize();
+        const { width, height } = page.getSize();
 
         page.drawImage(signatureImage, {
-          x: width - 200,
-          y: 120,
-          width: 150,
-          height: 60
+          x: width * 0.2,
+          y: height * 0.85,
+          width: 180,
+          height: 70
         });
 
         page.drawText(
