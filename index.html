@@ -151,14 +151,14 @@
 
         page.drawImage(signatureImage, {
           x: width * 0.21,
-          y: height * 0.79,
-          width: 170,
-          height: 60
+          y: height * 0.80,
+          width: 165,
+          height: 55
         });
 
         page.drawText(
           `Signed on ${new Date().toLocaleString()}`,
-          { x: width - 200, y: 100, size: 9 }
+          { x: width *0.42, height * 0.80, size: 9 }
         );
 
         const signedBytes = await pdfDoc.save();
