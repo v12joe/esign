@@ -158,7 +158,7 @@
 
         page.drawText(
           `Signed on ${new Date().toLocaleString()}`,
-          { x: width *0.42, height * 0.80, size: 9 }
+          { x: width * 0.42, y: height * 0.80, size: 9 }
         );
 
         const signedBytes = await pdfDoc.save();
