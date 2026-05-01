@@ -59,8 +59,7 @@
   <script type="module">
     /* ================= pdf.js ================= */
     import * as pdfjsLib from "https://unpkg.com/pdfjs-dist@4.2.67/build/pdf.mjs";
-    import pdfWorker from "https://unpkg.com/pdfjs-dist@4.2.67/build/pdf.worker.mjs";
-    pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@4.2.67/build/pdf.worker.min.mjs";
 
     /* ================= pdf-lib ================= */
     import { PDFDocument } from "https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm";
