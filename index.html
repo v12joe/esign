@@ -2,23 +2,25 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Web E‑Signature (ESM)</title>
+  <title>Web E‑Signature Demo (ES Modules)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <style>
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
       margin: 20px;
+      line-height: 1.4;
     }
 
-    canvas {
-      display: block;
-      margin-bottom: 10px;
+    h2, h3 {
+      margin-top: 1.5em;
     }
 
     #pdfCanvas {
       border: 1px solid #ccc;
       max-width: 100%;
+      display: block;
+      margin-bottom: 12px;
     }
 
     #signatureCanvas {
@@ -27,11 +29,14 @@
       max-width: 600px;
       height: 200px;
       touch-action: none;
+      display: block;
+      margin-bottom: 12px;
     }
 
     button {
       padding: 10px 16px;
       margin-right: 8px;
+      font-size: 14px;
     }
   </style>
 </head>
@@ -49,15 +54,18 @@
   <canvas id="signatureCanvas"></canvas>
 
   <button id="clearSig">Clear signature</button>
-  <button id="signPdf">Sign & download</button>
+  <button id="signPdf">Sign &amp; download</button>
 
-  <!-- ✅ MAIN MODULE SCRIPT -->
   <script type="module">
+    /* ================= pdf.js ================= */
     import * as pdfjsLib from "https://unpkg.com/pdfjs-dist@4.2.67/build/pdf.mjs";
     import pdfWorker from "https://unpkg.com/pdfjs-dist@4.2.67/build/pdf.worker.mjs";
     pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
+    /* ================= pdf-lib ================= */
     import { PDFDocument } from "https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm";
+
+    /* ================= signature_pad ================= */
     import SignaturePad from "https://cdn.jsdelivr.net/npm/signature_pad@4.1.5/+esm";
 
     const pdfInput = document.getElementById("pdfInput");
@@ -67,9 +75,8 @@
     const signatureCanvas = document.getElementById("signatureCanvas");
     const signaturePad = new SignaturePad(signatureCanvas);
 
-    let originalPdfBytes;
+    let originalPdfBytes = null;
 
-    /* --- Signature canvas DPI fix --- */
     function resizeSignatureCanvas() {
       const ratio = Math.max(window.devicePixelRatio || 1, 1);
       const rect = signatureCanvas.getBoundingClientRect();
@@ -78,15 +85,13 @@
       signatureCanvas.height = rect.height * ratio;
 
       const ctx = signatureCanvas.getContext("2d");
-      ctx.scale(ratio, ratio);
-
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
       signaturePad.clear();
     }
 
     resizeSignatureCanvas();
     window.addEventListener("resize", resizeSignatureCanvas);
 
-    /* --- Load and render PDF --- */
     pdfInput.addEventListener("change", async (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -95,7 +100,6 @@
 
       const pdf = await pdfjsLib.getDocument({ data: originalPdfBytes }).promise;
       const page = await pdf.getPage(1);
-
       const viewport = page.getViewport({ scale: 1.5 });
 
       pdfCanvas.width = viewport.width;
@@ -107,32 +111,28 @@
       }).promise;
     });
 
-    document.getElementById("clearSig").onclick = () => {
+    document.getElementById("clearSig").addEventListener("click", () => {
       signaturePad.clear();
-    };
+    });
 
-    /* --- Sign & download PDF --- */
-    document.getElementById("signPdf").onclick = async () => {
+    document.getElementById("signPdf").addEventListener("click", async () => {
       if (!originalPdfBytes) {
-        alert("Please select a PDF first");
+        alert("Please select a PDF first.");
         return;
       }
 
       if (signaturePad.isEmpty()) {
-        alert("Please provide a signature");
+        alert("Please provide a signature.");
         return;
       }
 
       const pdfDoc = await PDFDocument.load(originalPdfBytes);
       const page = pdfDoc.getPages()[0];
 
-      const signatureImage = await pdfDoc.embedPng(
-        signaturePad.toDataURL("image/png")
-      );
-
+      const png = await pdfDoc.embedPng(signaturePad.toDataURL("image/png"));
       const { width } = page.getSize();
 
-      page.drawImage(signatureImage, {
+      page.drawImage(png, {
         x: width - 200,
         y: 120,
         width: 150,
@@ -141,25 +141,19 @@
 
       page.drawText(
         `Signed on ${new Date().toLocaleString()}`,
-        {
-          x: width - 200,
-          y: 100,
-          size: 9
-        }
+        { x: width - 200, y: 100, size: 9 }
       );
 
-      const signedPdfBytes = await pdfDoc.save();
+      const signedBytes = await pdfDoc.save();
+      const blob = new Blob([signedBytes], { type: "application/pdf" });
 
-      const blob = new Blob([signedPdfBytes], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
-
       const a = document.createElement("a");
       a.href = url;
       a.download = "signed-document.pdf";
       a.click();
-
       URL.revokeObjectURL(url);
-    };
+    });
   </script>
 
 </body>
