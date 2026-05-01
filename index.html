@@ -54,12 +54,13 @@
   <canvas id="signatureCanvas"></canvas>
 
   <button id="clearSig">Clear signature</button>
-  <button id="signPdf">Sign &amp; download</button>
+  <button id="signPdf" disabled>Sign &amp; download</button>
 
   <script type="module">
     /* ================= pdf.js ================= */
     import * as pdfjsLib from "https://unpkg.com/pdfjs-dist@4.2.67/build/pdf.mjs";
-    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@4.2.67/build/pdf.worker.min.mjs";
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://unpkg.com/pdfjs-dist@4.2.67/build/pdf.worker.min.mjs";
 
     /* ================= pdf-lib ================= */
     import { PDFDocument } from "https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm";
@@ -91,13 +92,25 @@
     resizeSignatureCanvas();
     window.addEventListener("resize", resizeSignatureCanvas);
 
+    /* ---------- Load and render PDF ---------- */
     pdfInput.addEventListener("change", async (e) => {
       const file = e.target.files[0];
       if (!file) return;
 
-      originalPdfBytes = new Uint8Array(await file.arrayBuffer());
+      const buffer = await file.arrayBuffer();
 
-      const pdf = await pdfjsLib.getDocument({ data: originalPdfBytes }).promise;
+      /* Immutable bytes for pdf-lib */
+      originalPdfBytes = new Uint8Array(buffer);
+
+      /* Separate copy for pdf.js */
+      const pdfBytesForRendering = new Uint8Array(buffer.slice(0));
+
+      document.getElementById("signPdf").disabled = false;
+
+      const pdf = await pdfjsLib.getDocument({
+        data: pdfBytesForRendering
+      }).promise;
+
       const page = await pdf.getPage(1);
       const viewport = page.getViewport({ scale: 1.5 });
 
@@ -114,9 +127,10 @@
       signaturePad.clear();
     });
 
+    /* ---------- Sign and download ---------- */
     document.getElementById("signPdf").addEventListener("click", async () => {
-      if (!originalPdfBytes) {
-        alert("Please select a PDF first.");
+      if (!(originalPdfBytes instanceof Uint8Array)) {
+        alert("PDF not loaded correctly. Please reload and try again.");
         return;
       }
 
@@ -125,33 +139,42 @@
         return;
       }
 
-      const pdfDoc = await PDFDocument.load(originalPdfBytes);
-      const page = pdfDoc.getPages()[0];
+      try {
+        const pdfDoc = await PDFDocument.load(originalPdfBytes);
+        const page = pdfDoc.getPages()[0];
 
-      const png = await pdfDoc.embedPng(signaturePad.toDataURL("image/png"));
-      const { width } = page.getSize();
+        const signatureImage = await pdfDoc.embedPng(
+          signaturePad.toDataURL("image/png")
+        );
 
-      page.drawImage(png, {
-        x: width - 200,
-        y: 120,
-        width: 150,
-        height: 60
-      });
+        const { width } = page.getSize();
 
-      page.drawText(
-        `Signed on ${new Date().toLocaleString()}`,
-        { x: width - 200, y: 100, size: 9 }
-      );
+        page.drawImage(signatureImage, {
+          x: width - 200,
+          y: 120,
+          width: 150,
+          height: 60
+        });
 
-      const signedBytes = await pdfDoc.save();
-      const blob = new Blob([signedBytes], { type: "application/pdf" });
+        page.drawText(
+          `Signed on ${new Date().toLocaleString()}`,
+          { x: width - 200, y: 100, size: 9 }
+        );
 
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "signed-document.pdf";
-      a.click();
-      URL.revokeObjectURL(url);
+        const signedBytes = await pdfDoc.save();
+        const blob = new Blob([signedBytes], { type: "application/pdf" });
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "signed-document.pdf";
+        a.click();
+        URL.revokeObjectURL(url);
+
+      } catch (err) {
+        console.error(err);
+        alert("Failed to sign PDF. The file may be invalid.");
+      }
     });
   </script>
 
